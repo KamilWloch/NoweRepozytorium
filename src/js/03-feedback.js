@@ -1,65 +1,46 @@
 import _throttle from 'lodash.throttle';
-import * as storage from './storage';
+const formEl = document.querySelector('.feedback-form');
+const LOCAL_STORAGE_KEY = 'feedback-form-state';
 
-const form = document.querySelector('.feedback-form');
-const submitButton = form.querySelector('#submit');
-const LOCALSTORAGE_KEY = 'feedback-form-state';
-const parsedInput = storage.default.load(LOCALSTORAGE_KEY);
-const INPUT_EMPTY_VALUE = '';
+let data = {};
 
-function saveMessage() {
-    const feedback = getFormValues();
-    disableSubmitWhenEmptyValue(feedback);
-    storage.default.save(LOCALSTORAGE_KEY, feedback);
+loadForm();
+
+formEl.addEventListener('input', _throttle(onSaveFormInput, 500));
+
+formEl.addEventListener('submit', onFormSubmit);
+
+function onSaveFormInput(event) {
+  data = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY)) || {};
+
+  data[event.target.name] = event.target.value;
+
+  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
 }
 
-function getFormValues() {
-    const {
-        elements: { email, message },
-    } = form;
-    return {
-        email: email.value,
-        message: message.value,
-    };
-}
-
-function disableSubmitWhenEmptyValue(feedback) {
-    const isAnyValueEmpty = Object.values(feedback).some((value) => value === INPUT_EMPTY_VALUE);
-    if (isAnyValueEmpty) {
-        submitButton.setAttribute('disabled', 'true');
-    } else {
-        submitButton.removeAttribute('disabled');
-    }
-}
-
-function checkStorage() {
-  const {
-    elements: { email, message },
-  } = form;
-  if (parsedInput) {
-    email.value = parsedInput.email;
-    message.value = parsedInput.message;
-  } else {
-    email.value = INPUT_EMPTY_VALUE;
-    message.value = INPUT_EMPTY_VALUE;
-  }
-  disableSubmitWhenEmptyValue(getFormValues());
-}
-
-function afterSubmit(event) {
+function onFormSubmit(event) {
   event.preventDefault();
-  const {
-    elements: { email, message },
-  } = event.currentTarget;
-  if (email.value === '' || message.value === '') {
-    return alert('Please fill in all the fields!');
+  if (!event.target.email.value || !event.target.message.value) {
+    alert('Enter all data');
+    return;
   }
-  console.log(`Email: ${email.value}, Message: ${message.value}`);
-  form.reset();
-  storage.default.remove(LOCALSTORAGE_KEY);
+
+  event.target.reset();
+  console.log(data);
+  localStorage.removeItem(LOCAL_STORAGE_KEY);
 }
 
-form.addEventListener('input', _throttle(saveMessage, 500));
-form.addEventListener('submit', afterSubmit);
+function loadForm() {
+  try {
+    let formLoad = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY));
+    if (!formLoad) {
+      return;
+    }
 
-window.addEventListener('load', () => checkStorage());
+    data = formLoad;
+    formEl.email.value = data.email || '';
+    formEl.message.value = data.message || '';
+  } catch (error) {
+    console.error('Error.message ', error.message);
+  }
+}
